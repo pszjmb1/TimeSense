@@ -18,6 +18,7 @@ public class ServicesSearch {
 
     public static final Vector/*<String>*/ serviceFound = new Vector();
     public static final UUID OBEX_OBJECT_PUSH = new UUID(0x1105);
+    public static final UUID RFCOMM = new UUID(0x0003);
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -26,7 +27,7 @@ public class ServicesSearch {
 
         serviceFound.clear();
 
-        UUID serviceUUID = OBEX_OBJECT_PUSH;
+        UUID serviceUUID = RFCOMM;
         if ((args != null) && (args.length > 0)) {
             serviceUUID = new UUID(args[0], false);
         }
