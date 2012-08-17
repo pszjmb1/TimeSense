@@ -53,6 +53,7 @@ public abstract class RFCOMMClient implements Runnable{
                 //System.out.println(data);
                 processData(data);
             }
+            myHandler.setRunning(false);
             conn.close();
         } catch (IOException e) {
             System.err.print(e.toString());
