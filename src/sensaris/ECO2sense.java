@@ -31,7 +31,7 @@ public class ECO2sense extends RFCOMMClient{
             if ("CO2".equals(columns[2])) {
                 // ppm (not v)
                 value = Float.parseFloat(columns[4]);
-                System.out.println("CO2 " + value);
+                //System.out.println("CO2 " + value);
                 myHandler.execute(new String[]{dbTable,""+value});
             }
         } else if ("$GPRMC".equals(columns[1])) {

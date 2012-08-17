@@ -91,9 +91,9 @@ public interface SpBaseClient {
 	 * Executes a client operation. This version uses the stored client
 	 * @param operation is the operation to execute
 	 * @param params are the parameters to the operation
-	 * @return an obj array with the results
+	 * @return an obj with the results
 	 */
-	public void execute(String operation, Object[] params);
+	public Object execute(String operation, Object[] params);
 	/**
 	 * Routine to query a DB via XML-RPC
 	 * @param query is a query to pass to the server to perform

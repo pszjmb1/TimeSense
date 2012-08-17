@@ -5,10 +5,18 @@
 package sensaris;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
+import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,11 +30,12 @@ public class HttpReq implements DataHandler {
     String user = "";
     String pwrd = "";
     String proc = "";
-    private final BlockingQueue<ReqObj> myQueue = new LinkedBlockingQueue();
-    Thread consumer = new Thread(new ConsumeReqQueue(myQueue));
+    private final Map<String, ConsumeReqQueue> myQueues = new HashMap();
+    List<Thread> consumerThreads = new ArrayList();//Thread(new ConsumeReqQueue(myQueue));
     SimpleDateFormat dateFormat;
     String time;
     boolean running = true;
+    private final ReentrantLock reqLock = new ReentrantLock();
 
     public boolean isRunning() {
         return running;
@@ -35,7 +44,14 @@ public class HttpReq implements DataHandler {
     public void setRunning(boolean running) {
         this.running = running;
     }
-    
+
+    public void addConsumerQueue(String name) {
+        ConsumeReqQueue c = new ConsumeReqQueue(new LinkedBlockingQueue());
+        myQueues.put(name, c);
+        Thread t = new Thread(c);
+        consumerThreads.add(t);
+        t.start();
+    }
 
     //Params should be: String url, String proxyUrl, String port
     @Override
@@ -58,42 +74,79 @@ public class HttpReq implements DataHandler {
         }
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-
-        consumer.start();
     }
 
     @Override
     public void execute(String[] data) {
-        try {
-            time = dateFormat.format(new Date());
-            //Object[] params = new Object[]{"admin","Time349","wp_1_ts_C02_66"};
-            myQueue.put(new ReqObj(proc, new Object[]{user, pwrd, data[0], data[1], time}));
-        } catch (InterruptedException ex) {
-            Logger.getLogger(HttpReq.class.getName()).log(Level.INFO, null, ex);
+        time = dateFormat.format(new Date());
+        //Object[] params = new Object[]{"admin","Time349","wp_1_ts_C02_66"};
+        if (!myQueues.containsKey(data[0])) {
+            addConsumerQueue(data[0]);
         }
+        myQueues.get(data[0]).put(new ReqObj(proc, new Object[]{user, pwrd, data[0], data[1], time}));
+        System.out.println(time + " " + data[0] + " " + data[1]);
     }
 
     private class ConsumeReqQueue implements Runnable {
 
         private final BlockingQueue<ReqObj> queue;
+        private final ReentrantLock takeLock = new ReentrantLock();
+        private int insertionCounter = 0;
 
         public ConsumeReqQueue(BlockingQueue<ReqObj> queue) {
             this.queue = queue;
         }
 
-        @Override
-        public void run() {
+        public void put(ReqObj ro) {
             try {
-                while (running) {
-                    consume(queue.take());
-                }
+                queue.put(ro);
             } catch (InterruptedException ex) {
-                Logger.getLogger(HttpReq.class.getName()).log(Level.INFO, null, ex);
+                Logger.getLogger(HttpReq.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
 
-        void consume(ReqObj req) {
-            client.execute(req.getProc(), req.getParams());
+        @Override
+        public void run() {
+            while (running) {
+                final ReentrantLock takeLock = this.takeLock;
+                Collection<ReqObj> tempCol = new Vector<ReqObj>();
+                try {
+                    takeLock.lockInterruptibly();
+                    tempCol.add(queue.take());
+                    queue.drainTo(tempCol);
+                    queue.clear();
+                } catch (InterruptedException ex) {
+                } finally {
+                    takeLock.unlock();
+                }
+                consume(tempCol);
+            }
+        }
+
+        void consume(Collection<ReqObj> tempCol) {
+            ReqObj req = null;
+            Iterator<ReqObj> it = tempCol.iterator();
+            boolean first = true;
+            Vector params = new Vector();
+            Object[] reqParams = null;
+            while (it.hasNext()) {
+                req = it.next();
+                reqParams = req.getParams();
+                if (first) {
+                    first = false;
+                    params.add(reqParams[0]);
+                    params.add(reqParams[1]);
+                    params.add(reqParams[2]);
+                }
+                params.add(reqParams[3]);
+                params.add(reqParams[4]);
+            }
+            synchronized (client) {
+                if (null != reqParams) {
+                    System.out.println(reqParams[2] + " " + ++insertionCounter + " " + params.toString());
+                    System.out.println(reqParams[2] + " " + insertionCounter + " " + client.execute(req.getProc(), params.toArray()));
+                }
+            }
         }
     }
 

@@ -18,6 +18,8 @@ package sensaris;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Hashtable;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -255,10 +257,10 @@ public class SpXMLRpcClient implements SpBaseClient {
      *            are the parameters to the operation
      * @return an obj array with the results
      */
-    public void execute(String operation, Object[] params) {
+    public Object execute(String operation, Object[] params) {
         if (null == client) {
             LOGGER.info("Client is null.");
-            return;
+            return null;
         } else {
             try {
                 /*System.out.println("operation: " + operation);
@@ -266,10 +268,11 @@ public class SpXMLRpcClient implements SpBaseClient {
                 
                 System.out.println(params[i]);
                 }*/
-                client.execute(operation, params);
+                return client.execute(operation, params);
             } catch (Exception e) {
                 LOGGER.severe(e.getMessage());
                 logStackTrace(e);
+                return null;
             }
         }
     }
@@ -315,13 +318,22 @@ public class SpXMLRpcClient implements SpBaseClient {
         Logger.getLogger(SpXMLRpcClient.class.getName()).log(Level.INFO, "Test Proxy Client");
         setProxyClient("http://timestreams.wp.horizon.ac.uk/xmlrpc.php", 
            "wwwcache-20.cs.nott.ac.uk", "3128");//"128.243.253.109", "8080");
-        Object[] params = new Object[]{"admin","Time349","wp_1_ts_CO2_78"};
+        Hashtable datum = new Hashtable();
+        datum.put("value", 18);
+        Hashtable datum2 = new Hashtable();
+        datum2.put("value", 20);
+        Vector data = new Vector();
+        data.add(datum);
+        data.add(datum2);
+        Object[] params = new Object[]{"admin","Time349",
+            "wp_1_ts_SomeMeasurementType_68","2","2012-06-26 12:34:19","3","2012-06-26 12:34:20"};//data};
         try {
             Logger.getLogger(SpXMLRpcClient.class.getName()).log(Level.INFO, "Results:");
-            Object[] result = (Object[]) client.execute("timestreams.select_measurements", params);
+            /*Object[] result = (Object[]) client.execute("timestreams.select_measurements", params);
             for(int i = 0; i < result.length; i++){
                 System.out.println(result[i]);
-            }
+            }*/
+            System.out.println(client.execute("timestreams.add_measurements", params));
             Logger.getLogger(SpXMLRpcClient.class.getName()).log(Level.INFO, "Results - Done");
         } catch (XmlRpcException ex) {
             Logger.getLogger(SpXMLRpcClient.class.getName()).log(Level.SEVERE, null, ex);
